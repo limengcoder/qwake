@@ -9,7 +9,7 @@ const execFileAsync = promisify(execFile);
 const cli = path.resolve("src/cli.ts");
 
 async function runCli(args: string[], home: string) {
-  return execFileAsync("pnpm", ["tsx", cli, ...args], {
+  return execFileAsync(process.execPath, ["--import", "tsx/esm", cli, ...args], {
     env: { ...process.env, QWAKE_HOME: home }
   });
 }
