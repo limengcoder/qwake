@@ -13,6 +13,12 @@ export const DEFAULT_LIMIT_PATTERNS = [
   "limit reached"
 ];
 
+/** Default smart wake window: 5 hours */
+export const DEFAULT_WINDOW_MINUTES = 300;
+
+/** Default smart wake buffer after the window expires */
+export const DEFAULT_BUFFER_MINUTES = 5;
+
 export const DEFAULT_CONFIG: QwakeConfig = {
   version: 1,
   retryWindows: ["06:30", "11:30", "16:30", "21:30"],
@@ -60,7 +66,7 @@ export async function loadConfig(home = getQwakeHome()): Promise<QwakeConfig> {
     await initConfig({ home });
   }
   const raw = await readFile(configPath, "utf8");
-  const parsed = yaml.load(raw) as QwakeConfig | undefined;
+  const parsed = yaml.load(raw, { schema: yaml.JSON_SCHEMA }) as QwakeConfig | undefined;
   return normalizeConfig(parsed);
 }
 

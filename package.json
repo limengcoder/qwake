@@ -32,7 +32,7 @@
     "waker",
     "local-first"
   ],
-  "author": "",
+  "author": "sysiphus",
   "license": "Apache-2.0",
   "dependencies": {
     "commander": "^12.1.0",

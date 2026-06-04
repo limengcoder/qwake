@@ -1,5 +1,6 @@
 ---
 import BlogLayout from "../../layouts/BlogLayout.astro";
+import { SITE_URL } from "../../data/site";
 
 const title = "How to use Qwake on macOS, Linux, and Windows";
 const description =
@@ -11,14 +12,14 @@ const jsonLd = [
     headline: title,
     description,
     author: { "@type": "Organization", name: "Qwake" },
-    mainEntityOfPage: "https://qwake.dev/blog/use-qwake-on-macos-windows-linux/",
+    mainEntityOfPage: `${SITE_URL}/blog/use-qwake-on-macos-windows-linux/`,
     datePublished: "2026-05-30T00:00:00+08:00",
     dateModified: "2026-06-01T00:00:00+08:00",
-    image: "https://qwake.dev/og-image.svg",
+    image: `${SITE_URL}/og-image.svg`,
     publisher: {
       "@type": "Organization",
       name: "Qwake",
-      url: "https://qwake.dev"
+      url: SITE_URL
     }
   },
   {

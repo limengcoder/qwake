@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import LandingPage from "../components/LandingPage.astro";
-import { content, GITHUB_URL, NPM_URL } from "../data/site";
+import { SITE_URL, content, GITHUB_URL, NPM_URL } from "../data/site";
 
 const locale = "en";
 const t = content[locale];
@@ -13,7 +13,7 @@ const jsonLd = [
     applicationCategory: "DeveloperApplication",
     operatingSystem: "macOS, Linux, Windows",
     description: t.description,
-    url: "https://qwake.dev/",
+    url: `${SITE_URL}/`,
     downloadUrl: NPM_URL,
     codeRepository: GITHUB_URL,
     license: "https://www.apache.org/licenses/LICENSE-2.0"

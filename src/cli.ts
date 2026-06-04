@@ -16,6 +16,8 @@ import {
   triggerWakeSchedule,
   wakeAgent
 } from "./core.js";
+import { DEFAULT_BUFFER_MINUTES, DEFAULT_WINDOW_MINUTES } from "./config.js";
+import { getQwakeHome, getConfigPath } from "./paths.js";
 import type { AgentName } from "./types.js";
 
 const program = new Command();
@@ -23,7 +25,8 @@ const program = new Command();
 program
   .name("qwake")
   .description("Local-first quota window waker for AI coding agents.")
-  .version("0.1.0");
+  .version("0.1.0")
+  .option("--verbose", "show extra diagnostic information");
 
 program
   .command("init")
@@ -120,8 +123,8 @@ program
   .option("-p, --project <path>", "project path", process.cwd())
   .option("--budget-usd <amount>", "optional Claude max budget for this wake call")
   .option("--smart", "skip the live wake if the previous successful wake is still inside the quota window")
-  .option("--window-minutes <minutes>", "smart wake quota window length", "300")
-  .option("--buffer-minutes <minutes>", "smart wake extra safety buffer", "5")
+  .option("--window-minutes <minutes>", "smart wake quota window length", String(DEFAULT_WINDOW_MINUTES))
+  .option("--buffer-minutes <minutes>", "smart wake extra safety buffer", String(DEFAULT_BUFFER_MINUTES))
   .option("--json", "print structured JSON output")
   .action(async (agentValue: string, options) => {
     const agent = parseAgent(agentValue);
@@ -168,8 +171,8 @@ schedule
   .requiredOption("--times <times>", "comma-separated HH:mm times, e.g. 06:00,11:00,16:00,21:00")
   .option("--budget-usd <amount>", "optional Claude max budget for each wake call")
   .option("--no-smart", "disable smart window skipping for scheduled wakes")
-  .option("--window-minutes <minutes>", "smart wake quota window length", "300")
-  .option("--buffer-minutes <minutes>", "smart wake extra safety buffer", "5")
+  .option("--window-minutes <minutes>", "smart wake quota window length", String(DEFAULT_WINDOW_MINUTES))
+  .option("--buffer-minutes <minutes>", "smart wake extra safety buffer", String(DEFAULT_BUFFER_MINUTES))
   .option("--command <path>", "advanced: executable path for the scheduler")
   .action(async (agentValue: string, options) => {
     const agent = parseAgent(agentValue);
@@ -304,10 +307,18 @@ program
   .command("doctor")
   .description("Check local Qwake configuration and agent commands.")
   .action(async () => {
+    const opts = program.opts();
+    const verbose = Boolean(opts.verbose);
     const checks = await doctor();
     for (const check of checks) {
       const status = check.available ? "ok" : "missing";
       console.log(`${check.agent}: ${status}${check.command ? ` (${check.command})` : ""}`);
+    }
+    if (verbose) {
+      console.log(`\n  home: ${getQwakeHome()}`);
+      console.log(`  config: ${getConfigPath()}`);
+      console.log(`  node: ${process.version}`);
+      console.log(`  platform: ${process.platform}`);
     }
   });
 
@@ -316,7 +327,12 @@ const normalizedArgv = process.argv[2] === "--"
   : process.argv;
 
 program.parseAsync(normalizedArgv).catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  const opts = program.opts();
+  if (opts.verbose && error instanceof Error && error.stack) {
+    console.error(error.stack);
+  } else {
+    console.error(error instanceof Error ? error.message : String(error));
+  }
   process.exitCode = 1;
 });
 

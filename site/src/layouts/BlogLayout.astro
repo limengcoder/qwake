@@ -12,7 +12,7 @@ interface Props {
 }
 
 const { locale, title, description, canonicalPath, alternatePath, jsonLd } = Astro.props;
-const siteUrl = Astro.site?.toString().replace(/\/$/, "") ?? "https://qwake.dev";
+const siteUrl = Astro.site?.toString().replace(/\/$/, "") ?? "https://qwake.top";
 const canonical = `${siteUrl}${canonicalPath}`;
 const ogImage = `${siteUrl}/og-image.svg`;
 const t = content[locale];

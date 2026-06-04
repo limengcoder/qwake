@@ -40,7 +40,7 @@ Use the built-in mock agent:
 pnpm dev -- init
 pnpm dev -- doctor
 pnpm dev -- wake mock
-pnake dev -- probe mock
+pnpm dev -- probe mock
 ```
 
 Expected output:

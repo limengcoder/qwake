@@ -1,5 +1,5 @@
 import { cwd } from "node:process";
-import { initConfig, loadConfig } from "./config.js";
+import { DEFAULT_BUFFER_MINUTES, DEFAULT_WINDOW_MINUTES, initConfig, loadConfig } from "./config.js";
 import { TaskStore } from "./task-store.js";
 import { nextRetryTime } from "./windows.js";
 import { commandExists, runAgent, runResumeTask } from "./agent-runner.js";
@@ -103,8 +103,8 @@ export async function wakeAgent(input: {
   windowMinutes?: number;
   bufferMinutes?: number;
 }): Promise<RunAgentResult> {
-  const windowMinutes = input.windowMinutes ?? 300;
-  const bufferMinutes = input.bufferMinutes ?? 5;
+  const windowMinutes = input.windowMinutes ?? DEFAULT_WINDOW_MINUTES;
+  const bufferMinutes = input.bufferMinutes ?? DEFAULT_BUFFER_MINUTES;
   if (input.smart) {
     const decision = await getSmartWakeDecision({
       agent: input.agent,
