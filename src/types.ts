@@ -44,6 +44,7 @@ export interface RunAgentResult {
   exitCode: number;
   output: string;
   limited: boolean;
+  timedOut?: boolean;
   skipped?: boolean;
   lastSuccessAt?: string;
   nextWakeAt?: string;

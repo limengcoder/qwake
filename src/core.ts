@@ -1,5 +1,11 @@
 import { cwd } from "node:process";
-import { DEFAULT_BUFFER_MINUTES, DEFAULT_WINDOW_MINUTES, initConfig, loadConfig } from "./config.js";
+import {
+  DEFAULT_BUFFER_MINUTES,
+  DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS,
+  DEFAULT_WINDOW_MINUTES,
+  initConfig,
+  loadConfig
+} from "./config.js";
 import { TaskStore } from "./task-store.js";
 import { nextRetryTime } from "./windows.js";
 import { commandExists, runAgent, runResumeTask } from "./agent-runner.js";
@@ -102,9 +108,11 @@ export async function wakeAgent(input: {
   smart?: boolean;
   windowMinutes?: number;
   bufferMinutes?: number;
+  timeoutSeconds?: number;
 }): Promise<RunAgentResult> {
   const windowMinutes = input.windowMinutes ?? DEFAULT_WINDOW_MINUTES;
   const bufferMinutes = input.bufferMinutes ?? DEFAULT_BUFFER_MINUTES;
+  const timeoutSeconds = input.timeoutSeconds ?? (input.agent === "codex" ? DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS : undefined);
   if (input.smart) {
     const decision = await getSmartWakeDecision({
       agent: input.agent,
@@ -136,7 +144,8 @@ export async function wakeAgent(input: {
     cwd: input.projectPath || cwd(),
     input: `Reply exactly: QWAKE_OK ${wakeNonce()}. Do not inspect files, run tools, or continue any coding task.`,
     mockMode: "success",
-    quiet: true
+    quiet: true,
+    timeoutSeconds
   });
   if (result.exitCode === 0 && !result.limited) {
     const state = await recordWakeSuccess(input.agent);
@@ -219,6 +228,7 @@ export async function installWakeSchedule(input: {
   smart?: boolean;
   windowMinutes?: number;
   bufferMinutes?: number;
+  timeoutSeconds?: number;
 }) {
   return installSchedule(input);
 }
@@ -260,7 +270,15 @@ function getProbeArgs(agent: AgentName, budgetUsd?: string): string[] {
     return args;
   }
   if (agent === "codex") {
-    return ["exec", "--sandbox", "read-only", "--ask-for-approval", "never", "-"];
+    return [
+      "exec",
+      "--ignore-user-config",
+      "--sandbox",
+      "read-only",
+      "--ephemeral",
+      "--skip-git-repo-check",
+      "-"
+    ];
   }
   return [];
 }

@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { atomicWriteFile } from "./fs-utils.js";
+import { DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS } from "./config.js";
 import { getQwakeHome } from "./paths.js";
 import type { AgentName } from "./types.js";
 import { parseWindow } from "./windows.js";
@@ -26,6 +27,7 @@ export async function installSchedule(input: {
   smart?: boolean;
   windowMinutes?: number;
   bufferMinutes?: number;
+  timeoutSeconds?: number;
 }): Promise<InstalledSchedule> {
   assertMacOS();
   const times = normalizeTimes(input.times);
@@ -36,7 +38,8 @@ export async function installSchedule(input: {
     budgetUsd: input.budgetUsd,
     smart: input.smart ?? true,
     windowMinutes: input.windowMinutes,
-    bufferMinutes: input.bufferMinutes
+    bufferMinutes: input.bufferMinutes,
+    timeoutSeconds: input.timeoutSeconds ?? (input.agent === "codex" ? DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS : undefined)
   });
 
   await mkdir(path.dirname(schedule.plistPath), { recursive: true });
@@ -168,6 +171,7 @@ function buildProgramArguments(input: {
   smart?: boolean;
   windowMinutes?: number;
   bufferMinutes?: number;
+  timeoutSeconds?: number;
 }): string[] {
   const base = input.command
     ? [input.command]
@@ -181,6 +185,9 @@ function buildProgramArguments(input: {
   }
   if (input.bufferMinutes !== undefined) {
     args.push("--buffer-minutes", String(input.bufferMinutes));
+  }
+  if (input.timeoutSeconds !== undefined) {
+    args.push("--timeout-seconds", String(input.timeoutSeconds));
   }
   if (input.budgetUsd) {
     args.push("--budget-usd", input.budgetUsd);

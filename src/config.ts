@@ -19,6 +19,9 @@ export const DEFAULT_WINDOW_MINUTES = 300;
 /** Default smart wake buffer after the window expires */
 export const DEFAULT_BUFFER_MINUTES = 5;
 
+/** Default hard timeout for Codex wake calls */
+export const DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS = 120;
+
 export const DEFAULT_CONFIG: QwakeConfig = {
   version: 1,
   retryWindows: ["06:30", "11:30", "16:30", "21:30"],

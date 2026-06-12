@@ -144,4 +144,13 @@ describe("CLI", () => {
     const help = await runCli(["--help"], home);
     expect(help.stdout).toContain("schedule");
   });
+
+  it("shows wake timeout options in help", async () => {
+    const home = await mkdtemp(path.join(tmpdir(), "qwake-cli-"));
+    const wakeHelp = await runCli(["wake", "--help"], home);
+    const scheduleHelp = await runCli(["schedule", "install", "--help"], home);
+
+    expect(wakeHelp.stdout).toContain("--timeout-seconds");
+    expect(scheduleHelp.stdout).toContain("--timeout-seconds");
+  });
 });

@@ -13,6 +13,7 @@ export interface RunOptions {
   input?: string;
   mockMode?: "success" | "limit" | "fail";
   quiet?: boolean;
+  timeoutSeconds?: number;
 }
 
 export async function runAgent(options: RunOptions): Promise<RunAgentResult> {
@@ -28,12 +29,14 @@ export async function runAgent(options: RunOptions): Promise<RunAgentResult> {
   const output = await spawnAndCapture(options.config.command, args, {
     cwd: options.cwd,
     input: options.input,
-    quiet: options.quiet
+    quiet: options.quiet,
+    timeoutSeconds: options.timeoutSeconds
   });
   return {
     exitCode: output.exitCode,
     output: output.output,
-    limited: isLimitOutput(output.output, options.config.limitPatterns)
+    limited: isLimitOutput(output.output, options.config.limitPatterns),
+    timedOut: output.timedOut || undefined
   };
 }
 
@@ -88,16 +91,39 @@ async function runMock(mode: "success" | "limit" | "fail", patterns: string[]): 
 function spawnAndCapture(
   command: string,
   args: string[],
-  options: { cwd?: string; input?: string; quiet?: boolean } = {}
-): Promise<{ exitCode: number; output: string }> {
+  options: { cwd?: string; input?: string; quiet?: boolean; timeoutSeconds?: number } = {}
+): Promise<{ exitCode: number; output: string; timedOut: boolean }> {
   return new Promise((resolve, reject) => {
+    const controller = new AbortController();
+    let timedOut = false;
+    let settled = false;
+    let timeout: NodeJS.Timeout | undefined;
+    let forceKillTimeout: NodeJS.Timeout | undefined;
     const child = spawn(command, args, {
       cwd: options.cwd,
       stdio: ["pipe", "pipe", "pipe"],
-      shell: false
+      shell: false,
+      signal: controller.signal
     });
 
     let output = "";
+    if (options.timeoutSeconds !== undefined) {
+      const timeoutMs = Math.max(1, options.timeoutSeconds * 1000);
+      timeout = setTimeout(() => {
+        timedOut = true;
+        const message = `Timed out after ${options.timeoutSeconds} seconds.`;
+        output += output ? `\n${message}` : message;
+        if (!options.quiet) {
+          process.stderr.write(`${message}\n`);
+        }
+        controller.abort();
+        forceKillTimeout = setTimeout(() => {
+          if (child.exitCode === null && child.signalCode === null) {
+            child.kill("SIGKILL");
+          }
+        }, 5000);
+      }, timeoutMs);
+    }
     child.stdout.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
       output += text;
@@ -112,9 +138,32 @@ function spawnAndCapture(
         process.stderr.write(text);
       }
     });
-    child.on("error", reject);
+    child.on("error", (error: Error) => {
+      if (timedOut && error.name === "AbortError") {
+        return;
+      }
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      if (forceKillTimeout) {
+        clearTimeout(forceKillTimeout);
+      }
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    });
     child.on("close", (code) => {
-      resolve({ exitCode: code ?? 1, output });
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      if (forceKillTimeout) {
+        clearTimeout(forceKillTimeout);
+      }
+      if (!settled) {
+        settled = true;
+        resolve({ exitCode: timedOut ? 124 : code ?? 1, output, timedOut });
+      }
     });
 
     if (options.input) {

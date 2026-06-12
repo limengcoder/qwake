@@ -125,6 +125,7 @@ program
   .option("--smart", "skip the live wake if the previous successful wake is still inside the quota window")
   .option("--window-minutes <minutes>", "smart wake quota window length", String(DEFAULT_WINDOW_MINUTES))
   .option("--buffer-minutes <minutes>", "smart wake extra safety buffer", String(DEFAULT_BUFFER_MINUTES))
+  .option("--timeout-seconds <seconds>", "hard timeout for the wake call")
   .option("--json", "print structured JSON output")
   .action(async (agentValue: string, options) => {
     const agent = parseAgent(agentValue);
@@ -135,7 +136,8 @@ program
       budgetUsd: options.budgetUsd,
       smart: Boolean(options.smart),
       windowMinutes: parsePositiveInteger(options.windowMinutes, "window-minutes"),
-      bufferMinutes: parsePositiveInteger(options.bufferMinutes, "buffer-minutes")
+      bufferMinutes: parsePositiveInteger(options.bufferMinutes, "buffer-minutes"),
+      timeoutSeconds: parseStrictPositiveInteger(options.timeoutSeconds, "timeout-seconds")
     });
     const status = result.skipped ? "skipped" : result.limited ? "limited" : result.exitCode === 0 ? "success" : "failed";
     printEvent({
@@ -145,6 +147,7 @@ program
       startedAt,
       exitCode: result.exitCode,
       limited: result.limited,
+      timedOut: Boolean(result.timedOut),
       skipped: Boolean(result.skipped),
       lastSuccessAt: result.lastSuccessAt,
       nextWakeAt: result.nextWakeAt,
@@ -173,6 +176,7 @@ schedule
   .option("--no-smart", "disable smart window skipping for scheduled wakes")
   .option("--window-minutes <minutes>", "smart wake quota window length", String(DEFAULT_WINDOW_MINUTES))
   .option("--buffer-minutes <minutes>", "smart wake extra safety buffer", String(DEFAULT_BUFFER_MINUTES))
+  .option("--timeout-seconds <seconds>", "hard timeout for each wake call")
   .option("--command <path>", "advanced: executable path for the scheduler")
   .action(async (agentValue: string, options) => {
     const agent = parseAgent(agentValue);
@@ -183,7 +187,8 @@ schedule
       command: options.command,
       smart: options.smart !== false,
       windowMinutes: parsePositiveInteger(options.windowMinutes, "window-minutes"),
-      bufferMinutes: parsePositiveInteger(options.bufferMinutes, "buffer-minutes")
+      bufferMinutes: parsePositiveInteger(options.bufferMinutes, "buffer-minutes"),
+      timeoutSeconds: parseStrictPositiveInteger(options.timeoutSeconds, "timeout-seconds")
     });
     console.log(`Installed ${result.label}`);
     console.log(`Times: ${result.times.join(", ")}`);
@@ -350,6 +355,7 @@ function printEvent(input: {
   startedAt: Date;
   exitCode: number;
   limited: boolean;
+  timedOut?: boolean;
   skipped?: boolean;
   lastSuccessAt?: string;
   nextWakeAt?: string;
@@ -369,6 +375,7 @@ function printEvent(input: {
     status: input.status,
     exitCode: input.exitCode,
     limited: input.limited,
+    timedOut: input.timedOut || undefined,
     skipped: input.skipped || undefined,
     lastSuccessAt: input.lastSuccessAt,
     nextWakeAt: input.nextWakeAt,
@@ -383,6 +390,9 @@ function printEvent(input: {
   }
   let line =
     `[${event.localTimestamp}] ${event.command} agent=${event.agent} status=${event.status} exitCode=${event.exitCode} limited=${event.limited} durationMs=${event.durationMs} utc=${event.timestamp}`
+  if (event.timedOut) {
+    line += " timedOut=true";
+  }
   if (event.status === "skipped") {
     if (event.lastSuccessAt) {
       line += ` lastSuccessAt=${event.lastSuccessAt}`;
@@ -431,6 +441,17 @@ function parsePositiveInteger(value: string | undefined, label: string): number 
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) {
     throw new Error(`--${label} must be a non-negative integer.`);
+  }
+  return parsed;
+}
+
+function parseStrictPositiveInteger(value: string | undefined, label: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`--${label} must be a positive integer.`);
   }
   return parsed;
 }
