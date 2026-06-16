@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { atomicWriteFile } from "./fs-utils.js";
-import { DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS } from "./config.js";
+import { DEFAULT_WAKE_TIMEOUT_SECONDS } from "./config.js";
 import { getQwakeHome } from "./paths.js";
 import type { AgentName } from "./types.js";
 import { parseWindow } from "./windows.js";
@@ -39,7 +39,7 @@ export async function installSchedule(input: {
     smart: input.smart ?? true,
     windowMinutes: input.windowMinutes,
     bufferMinutes: input.bufferMinutes,
-    timeoutSeconds: input.timeoutSeconds ?? (input.agent === "codex" ? DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS : undefined)
+    timeoutSeconds: input.timeoutSeconds ?? DEFAULT_WAKE_TIMEOUT_SECONDS
   });
 
   await mkdir(path.dirname(schedule.plistPath), { recursive: true });

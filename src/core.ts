@@ -1,7 +1,7 @@
 import { cwd } from "node:process";
 import {
   DEFAULT_BUFFER_MINUTES,
-  DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS,
+  DEFAULT_WAKE_TIMEOUT_SECONDS,
   DEFAULT_WINDOW_MINUTES,
   initConfig,
   loadConfig
@@ -16,6 +16,7 @@ import {
   scheduleStatus,
   uninstallSchedule
 } from "./scheduler.js";
+import { acquireWakeLock } from "./wake-lock.js";
 import { getSmartWakeDecision, recordWakeSuccess } from "./wake-state.js";
 import type { RunAgentResult } from "./types.js";
 import type { AgentName, Task } from "./types.js";
@@ -112,51 +113,65 @@ export async function wakeAgent(input: {
 }): Promise<RunAgentResult> {
   const windowMinutes = input.windowMinutes ?? DEFAULT_WINDOW_MINUTES;
   const bufferMinutes = input.bufferMinutes ?? DEFAULT_BUFFER_MINUTES;
-  const timeoutSeconds = input.timeoutSeconds ?? (input.agent === "codex" ? DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS : undefined);
-  if (input.smart) {
-    const decision = await getSmartWakeDecision({
-      agent: input.agent,
-      windowMinutes,
-      bufferMinutes
-    });
-    if (!decision.shouldRun) {
-      return {
-        exitCode: 0,
-        output: "Smart wake skipped because the previous successful wake is still inside the configured quota window.",
-        limited: false,
-        skipped: true,
-        lastSuccessAt: decision.lastSuccessAt,
-        nextWakeAt: decision.nextWakeAt,
-        smartWindowMinutes: windowMinutes,
-        bufferMinutes
-      };
-    }
-  }
-
-  const config = await loadConfig();
-  const agentConfig = config.agents[input.agent];
-  const result = await runAgent({
-    agent: input.agent,
-    config: {
-      ...agentConfig,
-      args: getProbeArgs(input.agent, input.budgetUsd)
-    },
-    cwd: input.projectPath || cwd(),
-    input: `Reply exactly: QWAKE_OK ${wakeNonce()}. Do not inspect files, run tools, or continue any coding task.`,
-    mockMode: "success",
-    quiet: true,
-    timeoutSeconds
-  });
-  if (result.exitCode === 0 && !result.limited) {
-    const state = await recordWakeSuccess(input.agent);
+  const timeoutSeconds = input.timeoutSeconds ?? DEFAULT_WAKE_TIMEOUT_SECONDS;
+  const lock = await acquireWakeLock(input.agent, (timeoutSeconds + 60) * 1000);
+  if (!lock) {
     return {
-      ...result,
-      lastSuccessAt: state.lastSuccessAt,
-      smartWindowMinutes: input.smart ? windowMinutes : undefined,
-      bufferMinutes: input.smart ? bufferMinutes : undefined
+      exitCode: 0,
+      output: `Wake for ${input.agent} is already running.`,
+      limited: false,
+      skipped: true
     };
   }
-  return result;
+
+  try {
+    if (input.smart) {
+      const decision = await getSmartWakeDecision({
+        agent: input.agent,
+        windowMinutes,
+        bufferMinutes
+      });
+      if (!decision.shouldRun) {
+        return {
+          exitCode: 0,
+          output: "Smart wake skipped because the previous successful wake is still inside the configured quota window.",
+          limited: false,
+          skipped: true,
+          lastSuccessAt: decision.lastSuccessAt,
+          nextWakeAt: decision.nextWakeAt,
+          smartWindowMinutes: windowMinutes,
+          bufferMinutes
+        };
+      }
+    }
+
+    const config = await loadConfig();
+    const agentConfig = config.agents[input.agent];
+    const result = await runAgent({
+      agent: input.agent,
+      config: {
+        ...agentConfig,
+        args: getProbeArgs(input.agent, input.budgetUsd)
+      },
+      cwd: input.projectPath || cwd(),
+      input: `Reply exactly: QWAKE_OK ${wakeNonce()}. Do not inspect files, run tools, or continue any coding task.`,
+      mockMode: "success",
+      quiet: true,
+      timeoutSeconds
+    });
+    if (result.exitCode === 0 && !result.limited) {
+      const state = await recordWakeSuccess(input.agent);
+      return {
+        ...result,
+        lastSuccessAt: state.lastSuccessAt,
+        smartWindowMinutes: input.smart ? windowMinutes : undefined,
+        bufferMinutes: input.smart ? bufferMinutes : undefined
+      };
+    }
+    return result;
+  } finally {
+    await lock.release();
+  }
 }
 
 export async function listTasks(): Promise<Task[]> {

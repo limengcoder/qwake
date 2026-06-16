@@ -73,6 +73,8 @@ qwake schedule install claude --times 06:05,11:10,16:15,21:20
 
 The schedule runs a smart wake by default. It only calls the provider when at least `5h + 5m` has passed since the last successful wake for that agent. Otherwise Qwake logs `status=skipped` and avoids spending a live request.
 
+Qwake also keeps one wake lock per agent. If a wake for the same agent is already running, a duplicate wake is skipped instead of starting another provider call.
+
 Tune the smart window:
 
 ```bash
@@ -85,7 +87,7 @@ Disable smart skipping only when every scheduled time should call the provider:
 qwake schedule install claude --times 06:05,11:10,16:15,21:20 --no-smart
 ```
 
-Codex schedules include a 120-second hard timeout by default:
+Scheduled wake calls include a 120-second hard timeout by default:
 
 ```bash
 qwake schedule install codex --times 06:05,11:10,16:15,21:20 --timeout-seconds 120
@@ -115,7 +117,7 @@ By default Qwake does not set `--max-budget-usd`, which keeps it compatible with
 qwake wake codex
 ```
 
-The default Codex wake command uses non-interactive `codex exec` with read-only sandboxing, ephemeral sessions, skipped project-git checks, and ignored user config. Codex wake calls have a 120-second hard timeout by default so a stuck CLI process cannot block later schedule windows.
+The default Codex wake command uses non-interactive `codex exec` with read-only sandboxing, ephemeral sessions, skipped project-git checks, and ignored user config. Wake calls have a 120-second hard timeout by default so a stuck CLI process cannot block later schedule windows.
 
 Tune the timeout:
 
@@ -161,7 +163,8 @@ failed  = the local command failed, timed out, or was rejected
 skipped = smart mode avoided a live call because the previous success is still inside the configured window
 ```
 
-Timed out commands use exit code `124` and include `timedOut=true`.
+Timed out commands use exit code `124` and include `timedOut=true`. The default wake timeout is 120 seconds and can be overridden with `--timeout-seconds`.
+If another wake for the same agent is already running, Qwake logs `status=skipped`.
 
 ## Notes
 

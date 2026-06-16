@@ -19,8 +19,11 @@ export const DEFAULT_WINDOW_MINUTES = 300;
 /** Default smart wake buffer after the window expires */
 export const DEFAULT_BUFFER_MINUTES = 5;
 
-/** Default hard timeout for Codex wake calls */
-export const DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS = 120;
+/** Default hard timeout for live wake calls */
+export const DEFAULT_WAKE_TIMEOUT_SECONDS = 120;
+
+/** @deprecated Use DEFAULT_WAKE_TIMEOUT_SECONDS. */
+export const DEFAULT_CODEX_WAKE_TIMEOUT_SECONDS = DEFAULT_WAKE_TIMEOUT_SECONDS;
 
 export const DEFAULT_CONFIG: QwakeConfig = {
   version: 1,

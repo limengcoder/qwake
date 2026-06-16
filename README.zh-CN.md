@@ -73,6 +73,8 @@ qwake schedule install claude --times 06:05,11:10,16:15,21:20
 
 定时任务默认使用 smart wake。只有当距离该 agent 上一次成功 wake 至少过去 `5 小时 + 5 分钟` 后，Qwake 才会真的调用 provider。否则会记录 `status=skipped`，避免消耗 live request。
 
+Qwake 还会为每个 agent 保留一个 wake lock。如果同一个 agent 的 wake 已经在运行，重复 wake 会被跳过，不会再次调用 provider。
+
 调整 smart 窗口：
 
 ```bash
@@ -85,7 +87,7 @@ qwake schedule install claude --times 06:05,11:10,16:15,21:20 --window-minutes 3
 qwake schedule install claude --times 06:05,11:10,16:15,21:20 --no-smart
 ```
 
-Codex 定时任务默认带 120 秒硬超时：
+定时 wake 默认带 120 秒硬超时：
 
 ```bash
 qwake schedule install codex --times 06:05,11:10,16:15,21:20 --timeout-seconds 120
@@ -115,7 +117,7 @@ qwake wake claude --budget-usd 0.10
 qwake wake codex
 ```
 
-默认 Codex wake 命令使用非交互的 `codex exec`，启用只读 sandbox、临时会话、跳过项目 git 检查，并忽略用户配置。Codex wake 默认还有 120 秒硬超时，避免 CLI 卡住后阻塞后续定时窗口。
+默认 Codex wake 命令使用非交互的 `codex exec`，启用只读 sandbox、临时会话、跳过项目 git 检查，并忽略用户配置。wake 默认还有 120 秒硬超时，避免 CLI 卡住后阻塞后续定时窗口。
 
 调整超时时间：
 
@@ -161,7 +163,8 @@ failed  = 本地命令失败、超时或被 provider 拒绝
 skipped = smart mode 判断上一次成功 wake 仍在配置窗口内，因此跳过 live call
 ```
 
-超时命令使用退出码 `124`，日志里会带 `timedOut=true`。
+超时命令使用退出码 `124`，日志里会带 `timedOut=true`。默认 wake 超时时间是 120 秒，可以用 `--timeout-seconds` 覆盖。
+如果同一个 agent 已经有 wake 在运行，Qwake 会记录 `status=skipped`。
 
 ## 补充说明
 
